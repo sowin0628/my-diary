@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的生活量化 - 每日记录</title>
+    <!-- 引入 Chart.js 用于雷达图 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* ===== 温暖手账风设计 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #4a5568;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 30px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        /* 标题区域 */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .title {
+            font-size: 2.5em;
+            color: #5a67d8;
+            margin-bottom: 10px;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 1.1em;
+        }
+
+        /* 打卡状态显示 */
+        .streak-box {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(250, 177, 160, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .streak-box::before {
+            content: '🔥';
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 2em;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: translateY(-50%) scale(1); }
+            50% { transform: translateY(-50%) scale(1.2); }
+        }
+
+        .streak-number {
+            font-size: 3em;
+            font-weight: bold;
+            color: #d63031;
+            display: block;
+            line-height: 1;
+        }
+
+        .streak-text {
+            color: #636e72;
+            margin-top: 5px;
+            font-size: 1.1em;
+        }
+
+        /* 日期显示 */
+        .date-display {
+            text-align: center;
+            font-size: 1.3em;
+            color: #5a67d8;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+
+        /* 评分区域 */
+        .rating-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.3em;
+            color: #5a67d8;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dimension-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .dimension-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .dimension-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-color: #cbd5e0;
+        }
+
+        .dimension-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .dimension-name {
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        /* 星级评分 */
+        .star-rating {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .star {
+            font-size: 1.8em;
+            cursor: pointer;
+            color: #e2e8f0;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .star:hover,
+        .star.active {
+            color: #f6e05e;
+            transform: scale(1.2);
+            text-shadow: 0 2px 4px rgba(246, 224, 94, 0.4);
+        }
+
+        .star:hover {
+            color: #f6ad55;
+        }
+
+        /* 文字记录区 */
+        .journal-section {
+            margin-bottom: 30px;
+        }
+
+        .journal-input {
+            width: 100%;
+            min-height: 120px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 20px;
+            font-size: 1em;
+            font-family: inherit;
+            resize: vertical;
+            transition: all 0.3s;
+            background: #fff;
+        }
+
+        .journal-input:focus {
+            outline: none;
+            border-color: #9f7aea;
+            box-shadow: 0 0 0 3px rgba(159, 122, 234, 0.1);
+        }
+
+        .journal-input::placeholder {
+            color: #a0aec0;
+        }
+
+        /* 提交按钮 */
+        .submit-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.2em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            margin-bottom: 20px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        /* 结果展示区域（默认隐藏） */
+        .result-section {
+            display: none;
+            animation: fadeIn 0.6s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 25px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .result-title {
+            text-align: center;
+            font-size: 1.8em;
+            color: #5a67d8;
+            margin-bottom: 20px;
+        }
+
+        .radar-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 20px;
+        }
+
+        .journal-display {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 5px solid #9f7aea;
+        }
+
+        .journal-label {
+            font-weight: 600;
+            color: #9f7aea;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .journal-content {
+            color: #4a5568;
+            line-height: 1.8;
+            font-size: 1.1em;
+            white-space: pre-wrap;
+        }
+
+        /* 历史记录 */
+        .history-section {
+            margin-top: 40px;
+        }
+
+        .history-item {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 20px;
+            align-items: center;
+            transition: all 0.3s;
+        }
+
+        .history-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .history-date {
+            font-weight: 600;
+            color: #5a67d8;
+            min-width: 100px;
+        }
+
+        .history-scores {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .score-tag {
+            background: #edf2f7;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            color: #4a5568;
+        }
+
+        .score-tag.highlight {
+            background: #fef3c7;
+            color: #d69e2e;
+            font-weight: 600;
+        }
+
+        .history-total {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #9f7aea;
+        }
+
+        /* 导出按钮 */
+        .export-btn {
+            background: #48bb78;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+
+        .export-btn:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            .title {
+                font-size: 2em;
+            }
+            .dimension-grid {
+                grid-template-columns: 1fr;
+            }
+            .radar-container {
+                height: 300px;
+            }
+        }
+
+        /* 庆祝动画 */
+        .celebration {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #f6e05e;
+            animation: fall 3s linear;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 标题 -->
+        <div class="header">
+            <h1 class="title">📔 生活量化日记</h1>
+            <p class="subtitle">记录每一天，看见自己的成长轨迹</p>
+        </div>
+
+        <!-- 打卡状态 -->
+        <div class="streak-box">
+            <span class="streak-number" id="streakCount">0</span>
+            <div class="streak-text">连续记录天数</div>
+        </div>
+
+        <!-- 日期 -->
+        <div class="date-display" id="currentDate"></div>
+
+        <!-- 输入区域 -->
+        <div id="inputSection">
+            <div class="rating-section">
+                <div class="section-title">
+                    <span>⭐</span>
+                    <span>今日六维评分（1-5星）</span>
+                </div>
+                
+                <div class="dimension-grid">
+                    <!-- 心情 -->
+                    <div class="dimension-card">
+                        <div class="dimension-icon">😊</div>
+                        <div class="dimension-name">心情状态</div>
+                        <div class="star-rating" data-dimension="mood">
+                            <span class="star" data-value="1">★</span>
+                            <span class="star" data-value="2">★</span>
+                            <span class="star" data-value="3">★</span>
+                            <span class="star" data-value="4">★</span>
+                            <span class="star" data-value="5">★</span>
+                        </div>
+                    </div>
+
+                    <!-- 学习 -->
+                    <div class="dimension-card">
+                        <div class="dimension-icon">📚</div>
+                        <div class="dimension-name">学习成长</div>
+                        <div class="star-rating" data-dimension="study">
+                            <span class="star" data-value="1">★</span>
+                            <span class="star" data-value="2">★</span>
+                            <span class="star" data-value="3">★</span>
+                            <span class="star" data-value="4">★</span>
+                            <span class="star" data-value="5">★</span>
+                        </div>
+                    </div>
+
+                    <!-- 运动 -->
+                    <div class="dimension-card">
+                        <div class="dimension-icon">🏃</div>
+                        <div class="dimension-name">运动健康</div>
+                        <div class="star-rating" data-dimension="exercise">
+                            <span class="star" data-value="1">★</span>
+                            <span class="star" data-value="2">★</span>
+                            <span class="star" data-value="3">★</span>
+                            <span class="star" data-value="4">★</span>
+                            <span class="star" data-value="5">★</span>
+                        </div>
+                    </div>
+
+                    <!-- 睡眠 -->
+                    <div class="dimension-card">
+                        <div class="dimension-icon">😴</div>
+                        <div class="dimension-name">睡眠质量</div>
+                        <div class="star-rating" data-dimension="sleep">
+                            <span class="star" data-value="1">★</span>
+                            <span class="star" data-value="2">★</span>
+                            <span class="star" data-value="3">★</span>
+                            <span class="star" data-value="4">★</span>
+                            <span class="star" data-value="5">★</span>
+                        </div>
+                    </div>
+
+                    <!-- 娱乐 -->
+                    <div class="dimension-card">
+                        <div class="dimension-icon">🎮</div>
+                        <div class="dimension-name">休闲娱乐</div>
+                        <div class="star-rating" data-dimension="entertainment">
+                            <span class="star" data-value="1">★</span>
+                            <span class="star" data-value="2">★</span>
+                            <span class="star" data-value="3">★</span>
+                            <span class="star" data-value="4">★</span>
+                            <span class="star" data-value="5">★</span>
+                        </div>
+                    </div>
+
+                    <!-- 社交 -->
+                    <div class="dimension-card">
+                        <div class="dimension-icon">👥</div>
+                        <div class="dimension-name">人际连接</div>
+                        <div class="star-rating" data-dimension="social">
+                            <span class="star" data-value="1">★</span>
+                            <span class="star" data-value="2">★</span>
+                            <span class="star" data-value="3">★</span>
+                            <span class="star" data-value="4">★</span>
+                            <span class="star" data-value="5">★</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 文字记录 -->
+            <div class="journal-section">
+                <div class="section-title">
+                    <span>📝</span>
+                    <span>今日故事（选填）</span>
+                </div>
+                <textarea class="journal-input" id="journalText" placeholder="今天发生了什么值得记录的事？学习了什么新东西？心情如何？随便写写..."></textarea>
+            </div>
+
+            <button class="submit-btn" onclick="submitRecord()">
+                ✨ 生成今日生活卡片
+            </button>
+        </div>
+
+        <!-- 结果展示区域 -->
+        <div class="result-section" id="resultSection">
+            <div class="result-card">
+                <div class="result-title">📊 今日生活六边形</div>
+                <div class="radar-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+                
+                <div class="journal-display" id="journalDisplay" style="display: none;">
+                    <div class="journal-label">今日手记</div>
+                    <div class="journal-content" id="journalContent"></div>
+                </div>
+            </div>
+
+            <button class="submit-btn" onclick="newRecord()" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                📝 记录新的一天
+            </button>
+        </div>
+
+        <!-- 历史记录 -->
+        <div class="history-section">
+            <div class="section-title">
+                <span>📜</span>
+                <span>历史记录</span>
+            </div>
+            <div id="historyList"></div>
+            <button class="export-btn" onclick="exportData()">💾 导出数据备份</button>
+        </div>
+    </div>
+
+    <!-- 庆祝动画层 -->
+    <div class="celebration" id="celebration"></div>
+
+    <script>
+        // ===== 数据存储管理 =====
+        // 使用 LocalStorage 存储数据，键名为 'lifeQuantifyData'
+        const STORAGE_KEY = 'lifeQuantifyData';
+        
+        // 维度配置（名称和颜色）
+        const dimensions = {
+            mood: { name: '心情', color: '#F6E05E' },
+            study: { name: '学习', color: '#9F7AEA' },
+            exercise: { name: '运动', color: '#F687B3' },
+            sleep: { name: '睡眠', color: '#63B3ED' },
+            entertainment: { name: '娱乐', color: '#68D391' },
+            social: { name: '社交', color: '#F6AD55' }
+        };
+
+        let currentRatings = {}; // 存储当前评分
+        let radarChart = null;   // 图表实例
+
+        // ===== 初始化 =====
+        document.addEventListener('DOMContentLoaded', function() {
+            initDate();
+            initStarRatings();
+            loadHistory();
+            updateStreak();
+        });
+
+        // 显示当前日期
+        function initDate() {
+            const date = new Date();
+            const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+            document.getElementById('currentDate').textContent = date.toLocaleDateString('zh-CN', options);
+        }
+
+        // 初始化星级评分交互
+        function initStarRatings() {
+            document.querySelectorAll('.star-rating').forEach(container => {
+                const dimension = container.dataset.dimension;
+                const stars = container.querySelectorAll('.star');
+                
+                stars.forEach((star, index) => {
+                    // 鼠标悬停效果
+                    star.addEventListener('mouseenter', () => {
+                        highlightStars(stars, index + 1);
+                    });
+                    
+                    // 点击选择
+                    star.addEventListener('click', () => {
+                        currentRatings[dimension] = index + 1;
+                        highlightStars(stars, index + 1, true);
+                        // 添加点击动画
+                        star.style.transform = 'scale(1.4)';
+                        setTimeout(() => {
+                            star.style.transform = '';
+                        }, 200);
+                    });
+                });
+                
+                // 鼠标离开恢复原状
+                container.addEventListener('mouseleave', () => {
+                    const rating = currentRatings[dimension] || 0;
+                    highlightStars(stars, rating, true);
+                });
+            });
+        }
+
+        // 高亮星星
+        function highlightStars(stars, count, permanent = false) {
+            stars.forEach((star, index) => {
+                if (index < count) {
+                    star.classList.add('active');
+                    if (permanent && index === count - 1) {
+                        star.style.transform = 'scale(1.2)';
+                    }
+                } else {
+                    star.classList.remove('active');
+                    star.style.transform = '';
+                }
+            });
+        }
+
+        // ===== 核心功能：提交记录 =====
+        function submitRecord() {
+            // 验证是否至少有一个评分
+            if (Object.keys(currentRatings).length === 0) {
+                alert('请至少为一个维度评分！');
+                return;
+            }
+
+            const record = {
+                date: new Date().toISOString(),
+                ratings: { ...currentRatings },
+                journal: document.getElementById('journalText').value,
+                total: Object.values(currentRatings).reduce((a, b) => a + b, 0)
+            };
+
+            // 保存到 LocalStorage
+            saveRecord(record);
+            
+            // 显示结果
+            showResult(record);
+            
+            // 庆祝动画
+            if (Object.keys(currentRatings).length === 6) {
+                celebrate();
+            }
+            
+            // 更新连续天数
+            updateStreak();
+        }
+
+        // 保存记录
+        function saveRecord(record) {
+            let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            
+            // 检查今天是否已有记录，有则替换
+            const today = new Date().toDateString();
+            const existingIndex = data.findIndex(r => new Date(r.date).toDateString() === today);
+            
+            if (existingIndex >= 0) {
+                data[existingIndex] = record;
+            } else {
+                data.push(record);
+            }
+            
+            // 按日期排序
+            data.sort((a, b) => new Date(b.date) - new Date(a.date));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            
+            loadHistory();
+        }
+
+        // ===== 展示结果（A页面 - 生活卡片） =====
+        function showResult(record) {
+            document.getElementById('inputSection').style.display = 'none';
+            document.getElementById('resultSection').style.display = 'block';
+            
+            // 显示文字记录
+            const journalText = record.journal.trim();
+            const journalDisplay = document.getElementById('journalDisplay');
+            if (journalText) {
+                document.getElementById('journalContent').textContent = journalText;
+                journalDisplay.style.display = 'block';
+            } else {
+                journalDisplay.style.display = 'none';
+            }
+            
+            // 生成雷达图
+            createRadarChart(record.ratings);
+            
+            // 滚动到结果区域
+            document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // 创建雷达图
+        function createRadarChart(ratings) {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            
+            // 准备数据（确保六个维度都有值，没有评分的默认为0）
+            const labels = Object.values(dimensions).map(d => d.name);
+            const data = Object.keys(dimensions).map(key => ratings[key] || 0);
+            const colors = Object.values(dimensions).map(d => d.color);
+            
+            // 如果已有图表，先销毁
+            if (radarChart) {
+                radarChart.destroy();
+            }
+            
+            radarChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '今日评分',
+                        data: data,
+                        backgroundColor: 'rgba(159, 122, 234, 0.2)',
+                        borderColor: 'rgba(159, 122, 234, 1)',
+                        pointBackgroundColor: colors,
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: colors,
+                        borderWidth: 3,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 5,
+                            ticks: {
+                                stepSize: 1,
+                                font: { size: 12 }
+                            },
+                            pointLabels: {
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                },
+                                color: '#4a5568'
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    animation: {
+                        duration: 1500,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        // ===== 连续打卡逻辑 =====
+        function updateStreak() {
+            const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            if (data.length === 0) {
+                document.getElementById('streakCount').textContent = '0';
+                return;
+            }
+            
+            let streak = 0;
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            // 检查今天是否已记录
+            const todayStr = today.toDateString();
+            const hasToday = data.some(r => new Date(r.date).toDateString() === todayStr);
+            
+            // 计算连续天数
+            let checkDate = new Date(today);
+            if (!hasToday) {
+                // 如果今天没记录，从昨天开始算
+                checkDate.setDate(checkDate.getDate() - 1);
+            }
+            
+            while (true) {
+                const dateStr = checkDate.toDateString();
+                const hasRecord = data.some(r => new Date(r.date).toDateString() === dateStr);
+                
+                if (hasRecord) {
+                    streak++;
+                    checkDate.setDate(checkDate.getDate() - 1);
+                } else {
+                    break;
+                }
+            }
+            
+            document.getElementById('streakCount').textContent = streak;
+            
+            // 连续7天以上有特殊效果
+            if (streak >= 7) {
+                document.querySelector('.streak-box').style.background = 
+                    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)';
+            }
+        }
+
+        // ===== 历史记录展示 =====
+        function loadHistory() {
+            const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            const container = document.getElementById('historyList');
+            
+            if (data.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #a0aec0; padding: 20px;">还没有记录，开始你的第一天吧！</p>';
+                return;
+            }
+            
+            container.innerHTML = data.map(record => {
+                const date = new Date(record.date);
+                const dateStr = `${date.getMonth()+1}月${date.getDate()}日`;
+                const weekStr = ['日','一','二','三','四','五','六'][date.getDay()];
+                
+                // 找出最高分维度
+                let maxDim = '';
+                let maxScore = 0;
+                Object.entries(record.ratings).forEach(([key, val]) => {
+                    if (val > maxScore) {
+                        maxScore = val;
+                        maxDim = dimensions[key].name;
+                    }
+                });
+                
+                return `
+                    <div class="history-item">
+                        <div class="history-date">${dateStr}<br><small>周${weekStr}</small></div>
+                        <div class="history-scores">
+                            ${Object.entries(record.ratings).map(([key, val]) => 
+                                `<span class="score-tag ${val === maxScore ? 'highlight' : ''}">
+                                    ${dimensions[key].name}${'★'.repeat(val)}${'☆'.repeat(5-val)}
+                                </span>`
+                            ).join('')}
+                        </div>
+                        <div class="history-total">${record.total}分</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ===== 辅助功能 =====
+        // 新的一天按钮
+        function newRecord() {
+            // 重置表单
+            currentRatings = {};
+            document.getElementById('journalText').value = '';
+            document.querySelectorAll('.star').forEach(star => {
+                star.classList.remove('active');
+                star.style.transform = '';
+            });
+            
+            // 切换视图
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('inputSection').style.display = 'block';
+            
+            // 更新日期（以防跨天）
+            initDate();
+            updateStreak();
+            
+            // 滚动到顶部
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 导出数据
+        function exportData() {
+            const data = localStorage.getItem(STORAGE_KEY) || '[]';
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `生活量化备份_${new Date().toLocaleDateString()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('数据已导出！请妥善保存这个JSON文件，稍后可以用来恢复数据。');
+        }
+
+        // 庆祝动画（ confetti 效果）
+        function celebrate() {
+            const container = document.getElementById('celebration');
+            container.style.display = 'block';
+            container.innerHTML = '';
+            
+            const colors = ['#f6e05e', '#9f7aea', '#f687b3', '#63b3ed', '#68d391', '#f6ad55'];
+            
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + '%';
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDelay = Math.random() * 2 + 's';
+                confetti.style.opacity = Math.random();
+                container.appendChild(confetti);
+            }
+            
+            setTimeout(() => {
+                container.style.display = 'none';
+            }, 3000);
+        }
+
+        // 页面加载时的欢迎检查
+        window.addEventListener('load', () => {
+            const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            const today = new Date().toDateString();
+            const hasToday = data.some(r => new Date(r.date).toDateString() === today);
+            
+            if (hasToday) {
+                // 如果今天已记录，显示查看按钮
+                if (confirm('今天已经记录过了！要查看今天的生活卡片吗？')) {
+                    const todayRecord = data.find(r => new Date(r.date).toDateString() === today);
+                    showResult(todayRecord);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
